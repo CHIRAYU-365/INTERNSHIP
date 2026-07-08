@@ -1,0 +1,13 @@
+[
+  {
+    "name": "My First Project",
+    "gitId": "example/repo",
+    "description": "An example project loaded from projects.json",
+    "techs": [
+      "HTML5",
+      "CSS3",
+      "JavaScript"
+    ],
+    "liveUrl": "https://example.com"
+  }
+]
