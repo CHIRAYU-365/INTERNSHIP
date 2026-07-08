@@ -4,6 +4,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
@@ -54,6 +55,30 @@ try {
     knownTechNames = techData.map(t => t.name);
 } catch (e) {
     console.error('Failed to load technologies.json in server.js:', e);
+}
+
+// Helper to make native HTTPS GET requests to avoid global fetch issues on older Node versions in serverless runtimes
+function requestGet(url) {
+    return new Promise((resolve, reject) => {
+        const options = {
+            headers: {
+                'User-Agent': 'CyberFolio-App'
+            }
+        };
+        https.get(url, options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                if (res.statusCode >= 200 && res.statusCode < 300) {
+                    resolve(data);
+                } else {
+                    reject(new Error(`HTTP ${res.statusCode}: ${data}`));
+                }
+            });
+        }).on('error', (err) => {
+            reject(err);
+        });
+    });
 }
 
 app.get('/api/projects', async (req, res) => {
@@ -113,38 +138,35 @@ app.post('/api/analyze', async (req, res) => {
     }
 
     try {
-        const repoRes = await fetch(`https://api.github.com/repos/${gitId}`, {
-            headers: { 'User-Agent': 'CyberFolio-App' }
-        });
-        if (!repoRes.ok) {
+        let repoData;
+        try {
+            const rawData = await requestGet(`https://api.github.com/repos/${gitId}`);
+            repoData = JSON.parse(rawData);
+        } catch (e) {
             return res.status(404).json({ error: 'Repository not found on GitHub.' });
         }
-        const repoData = await repoRes.json();
 
         let readmeContent = '';
         const readmeBranches = ['main', 'master'];
         for (const branch of readmeBranches) {
-            const readmeRes = await fetch(`https://raw.githubusercontent.com/${gitId}/${branch}/README.md`, {
-                headers: { 'User-Agent': 'CyberFolio-App' }
-            });
-            if (readmeRes.ok) {
-                readmeContent = await readmeRes.text();
+            try {
+                readmeContent = await requestGet(`https://raw.githubusercontent.com/${gitId}/${branch}/README.md`);
                 break;
-            }
+            } catch (e) {}
         }
 
         if (!GEMINI_API_KEY) {
             console.warn('GEMINI_API_KEY is missing. Using static fallback analysis.');
             const fallbackTechs = [];
-            const langRes = await fetch(`https://api.github.com/repos/${gitId}/languages`, {
-                headers: { 'User-Agent': 'CyberFolio-App' }
-            });
-            if (langRes.ok) {
-                const langData = await langRes.json();
+            try {
+                const rawLangData = await requestGet(`https://api.github.com/repos/${gitId}/languages`);
+                const langData = JSON.parse(rawLangData);
                 Object.keys(langData).forEach(lang => {
                     const match = knownTechNames.find(t => t.toLowerCase() === lang.toLowerCase());
                     if (match) fallbackTechs.push(match);
                 });
+            } catch (e) {
+                console.warn('Failed to parse repository languages:', e);
             }
             return res.json({
                 name: repoData.name,

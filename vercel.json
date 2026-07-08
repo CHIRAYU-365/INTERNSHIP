@@ -8,6 +8,10 @@
     {
       "src": "index.html",
       "use": "@vercel/static"
+    },
+    {
+      "src": "technologies.json",
+      "use": "@vercel/static"
     }
   ],
   "rewrites": [
@@ -16,8 +20,12 @@
       "destination": "/server.js"
     },
     {
+      "source": "/technologies.json",
+      "destination": "/technologies.json"
+    },
+    {
       "source": "/(.*)",
-      "destination": "/$1"
+      "destination": "/index.html"
     }
   ]
 }
