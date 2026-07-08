@@ -113,7 +113,9 @@ app.post('/api/analyze', async (req, res) => {
     }
 
     try {
-        const repoRes = await fetch(`https://api.github.com/repos/${gitId}`);
+        const repoRes = await fetch(`https://api.github.com/repos/${gitId}`, {
+            headers: { 'User-Agent': 'CyberFolio-App' }
+        });
         if (!repoRes.ok) {
             return res.status(404).json({ error: 'Repository not found on GitHub.' });
         }
@@ -122,7 +124,9 @@ app.post('/api/analyze', async (req, res) => {
         let readmeContent = '';
         const readmeBranches = ['main', 'master'];
         for (const branch of readmeBranches) {
-            const readmeRes = await fetch(`https://raw.githubusercontent.com/${gitId}/${branch}/README.md`);
+            const readmeRes = await fetch(`https://raw.githubusercontent.com/${gitId}/${branch}/README.md`, {
+                headers: { 'User-Agent': 'CyberFolio-App' }
+            });
             if (readmeRes.ok) {
                 readmeContent = await readmeRes.text();
                 break;
@@ -132,7 +136,9 @@ app.post('/api/analyze', async (req, res) => {
         if (!GEMINI_API_KEY) {
             console.warn('GEMINI_API_KEY is missing. Using static fallback analysis.');
             const fallbackTechs = [];
-            const langRes = await fetch(`https://api.github.com/repos/${gitId}/languages`);
+            const langRes = await fetch(`https://api.github.com/repos/${gitId}/languages`, {
+                headers: { 'User-Agent': 'CyberFolio-App' }
+            });
             if (langRes.ok) {
                 const langData = await langRes.json();
                 Object.keys(langData).forEach(lang => {
