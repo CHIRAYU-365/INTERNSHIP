@@ -500,34 +500,32 @@
       submitBtn.disabled = true;
 
       try {
-        const repoResponse = await fetch(`https://api.github.com/repos/${gitId}`);
-        if (!repoResponse.ok) {
-          throw new Error('Repository authentication match failed on Github. Verify name.');
-        }
-        const repoData = await repoResponse.json();
+        const analyzeResponse = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gitId })
+        });
 
-        let finalTechStack = [...manualTechList];
-        try {
-          const langResponse = await fetch(`https://api.github.com/repos/${gitId}/languages`);
-          if (langResponse.ok) {
-            const languages = Object.keys(await langResponse.json());
-            languages.forEach(lang => {
-              const matched = TECHNOLOGIES.find(t => t.name.toLowerCase() === lang.toLowerCase());
-              if (matched && !finalTechStack.includes(matched.name)) {
-                finalTechStack.push(matched.name);
-              }
-            });
-          }
-        } catch (langErr) {
-          console.warn('Language analysis failed. Proceeding with manual input stacks.', langErr);
+        if (!analyzeResponse.ok) {
+          const errData = await analyzeResponse.json();
+          throw new Error(errData.error || 'Repository analysis failed.');
         }
+
+        const analyzedData = await analyzeResponse.json();
+
+        let finalTechStack = [...analyzedData.techs];
+        manualTechList.forEach(tech => {
+          if (!finalTechStack.includes(tech)) {
+            finalTechStack.push(tech);
+          }
+        });
 
         const newProject = {
-          name: overrideTitle || repoData.name,
+          name: overrideTitle || analyzedData.name,
           gitId: gitId,
-          description: overrideDesc || repoData.description || 'Auto-generated metadata from repository.',
+          description: overrideDesc || analyzedData.description,
           techs: finalTechStack,
-          liveUrl: liveUrl || repoData.homepage || null
+          liveUrl: liveUrl || analyzedData.liveUrl
         };
 
         const saveResponse = await fetch('/api/projects', {
