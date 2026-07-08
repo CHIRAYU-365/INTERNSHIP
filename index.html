@@ -422,7 +422,7 @@
     }
 
     window.deleteProject = async function(name) {
-      if (!confirm(`Are you sure you want to remove "${name}" from projects.json?`)) return;
+      if (!confirm(`Are you sure you want to permanently delete "${name}"?`)) return;
       
       try {
           // Send DELETE request to backend

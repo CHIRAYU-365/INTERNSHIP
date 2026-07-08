@@ -9,18 +9,32 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-// Serve static files from the current directory
 app.use(express.static(__dirname));
 
-// MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
 
-if (MONGODB_URI) {
-    mongoose.connect(MONGODB_URI)
-        .then(() => console.log('Connected to MongoDB'))
-        .catch(err => console.error('Failed to connect to MongoDB', err));
-} else {
-    console.warn('WARNING: MONGODB_URI is not set. Database operations will fail.');
+// Robust Serverless Database Connection
+let cached = global.mongoose;
+if (!cached) {
+    cached = global.mongoose = { conn: null, promise: null };
+}
+
+async function connectDB() {
+    if (cached.conn) return cached.conn;
+    if (!MONGODB_URI) {
+        console.warn('WARNING: MONGODB_URI is not set.');
+        throw new Error('MONGODB_URI is not set');
+    }
+    if (!cached.promise) {
+        cached.promise = mongoose.connect(MONGODB_URI, {
+            bufferCommands: false,
+        }).then((mongoose) => {
+            console.log('Successfully connected to MongoDB.');
+            return mongoose;
+        });
+    }
+    cached.conn = await cached.promise;
+    return cached.conn;
 }
 
 // Define the Project Schema
@@ -32,15 +46,16 @@ const projectSchema = new mongoose.Schema({
     liveUrl: { type: String, default: null }
 });
 
-const Project = mongoose.model('Project', projectSchema);
+const Project = mongoose.models.Project || mongoose.model('Project', projectSchema);
 
 // Read all projects
 app.get('/api/projects', async (req, res) => {
     try {
+        await connectDB();
         const projects = await Project.find({});
         res.json(projects);
     } catch (err) {
-        console.error(err);
+        console.error('Fetch Error:', err);
         res.status(500).json({ error: 'Failed to fetch projects from database' });
     }
 });
@@ -48,18 +63,19 @@ app.get('/api/projects', async (req, res) => {
 // Add a project
 app.post('/api/projects', async (req, res) => {
     try {
+        await connectDB();
         const newProjectData = req.body;
         
-        // Use findOneAndUpdate with upsert to prevent duplicates by name
+        // Upsert to avoid duplicates
         const savedProject = await Project.findOneAndUpdate(
             { name: newProjectData.name },
             newProjectData,
-            { new: true, upsert: true }
+            { new: true, upsert: true, setDefaultsOnInsert: true }
         );
 
         res.json({ success: true, project: savedProject });
     } catch (err) {
-        console.error(err);
+        console.error('Save Error:', err);
         res.status(500).json({ error: 'Failed to save project' });
     }
 });
@@ -67,11 +83,16 @@ app.post('/api/projects', async (req, res) => {
 // Remove a project
 app.delete('/api/projects/:name', async (req, res) => {
     try {
+        await connectDB();
         const projectName = req.params.name;
-        await Project.findOneAndDelete({ name: projectName });
+        const result = await Project.findOneAndDelete({ name: projectName });
+        
+        if (!result) {
+             return res.status(404).json({ error: 'Project not found' });
+        }
         res.json({ success: true });
     } catch (err) {
-        console.error(err);
+        console.error('Delete Error:', err);
         res.status(500).json({ error: 'Failed to delete project' });
     }
 });
@@ -80,5 +101,4 @@ app.listen(PORT, () => {
     console.log(`Server is running at http://localhost:${PORT}`);
 });
 
-// Export the Express API for Vercel Serverless Functions
 module.exports = app;
