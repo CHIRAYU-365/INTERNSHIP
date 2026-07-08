@@ -288,10 +288,17 @@
     const selectedTechTags = document.getElementById('selected-tech-tags');
 
     async function initSystem() {
+      if (window.location.protocol === 'file:') {
+        const warning = document.createElement('div');
+        warning.className = 'w-full bg-amber-950/80 border-b border-amber-500/20 px-6 py-3 text-center text-xs text-amber-400 font-bold z-50';
+        warning.innerHTML = '<i data-lucide="alert-triangle" class="w-4 h-4 inline mr-1 text-amber-400 align-middle"></i> Direct file opening detected. Launch using <code>npm start</code> and visit <code>http://localhost:3000</code> to enable database features.';
+        document.body.insertBefore(warning, document.body.firstChild);
+        lucide.createIcons();
+      }
+
       try {
         const techResponse = await fetch('technologies.json');
         TECHNOLOGIES = await techResponse.json();
-        
         await reloadProjects();
       } catch (err) {
         console.error('System initialization error:', err);
@@ -304,10 +311,21 @@
         projectGrid.innerHTML = '';
         
         const response = await fetch('/api/projects');
-        PROJECTS = await response.json();
+        if (!response.ok) {
+          throw new Error('Database connection failed.');
+        }
         
+        const data = await response.json();
+        if (data && data.error) {
+          throw new Error(data.error);
+        }
+
+        PROJECTS = Array.isArray(data) ? data : [];
         loadingState.style.display = 'none';
         
+        const existingWarning = document.getElementById('db-offline-warning');
+        if (existingWarning) existingWarning.remove();
+
         if (PROJECTS.length > 0) {
           emptyState.classList.add('hidden');
           renderDashboard(PROJECTS);
@@ -317,8 +335,18 @@
         }
       } catch (err) {
         console.error('Failed to reload portfolio:', err);
+        PROJECTS = [];
         loadingState.style.display = 'none';
         emptyState.classList.remove('hidden');
+        
+        if (!document.getElementById('db-offline-warning')) {
+          const warning = document.createElement('div');
+          warning.id = 'db-offline-warning';
+          warning.className = 'w-full bg-red-950/80 border-b border-red-500/20 px-6 py-3 text-center text-xs text-red-400 font-bold z-50';
+          warning.innerHTML = '<i data-lucide="database" class="w-4 h-4 inline mr-1 text-red-400 align-middle"></i> Database Offline: Ensure MONGODB_URI is set in your .env and allow 0.0.0.0/0 in MongoDB Atlas.';
+          document.body.insertBefore(warning, document.body.firstChild);
+          lucide.createIcons();
+        }
       }
     }
 
@@ -326,7 +354,8 @@
       projectGrid.innerHTML = '';
       statCount.innerText = PROJECTS.length.toString();
       
-      projectsToRender.forEach(project => {
+      const list = Array.isArray(projectsToRender) ? projectsToRender : [];
+      list.forEach(project => {
         const card = document.createElement('div');
         card.className = 'web3-card w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] xl:w-[calc(25%-18px)] p-6 rounded-2xl flex flex-col justify-between relative overflow-hidden card-enter';
         
@@ -506,12 +535,21 @@
           body: JSON.stringify({ gitId })
         });
 
+        let analyzedData;
         if (!analyzeResponse.ok) {
-          const errData = await analyzeResponse.json();
-          throw new Error(errData.error || 'Repository analysis failed.');
+          let errorMsg = 'Repository analysis failed.';
+          try {
+            const errData = await analyzeResponse.json();
+            errorMsg = errData.error || errorMsg;
+          } catch (e) {}
+          throw new Error(errorMsg);
         }
 
-        const analyzedData = await analyzeResponse.json();
+        try {
+          analyzedData = await analyzeResponse.json();
+        } catch (e) {
+          throw new Error('Invalid response received from the analysis server.');
+        }
 
         let finalTechStack = [...analyzedData.techs];
         manualTechList.forEach(tech => {
