@@ -517,8 +517,41 @@
       }
     });
 
+    function extractRepoSlug(input) {
+      let clean = input.trim();
+      if (clean.endsWith('.git')) {
+        clean = clean.slice(0, -4);
+      }
+      if (clean.startsWith('git@github.com:')) {
+        return clean.replace('git@github.com:', '');
+      }
+      try {
+        if (!/^https?:\/\//i.test(clean)) {
+          clean = 'https://' + clean;
+        }
+        const url = new URL(clean);
+        if (url.hostname.includes('github.com')) {
+          const parts = url.pathname.split('/').filter(Boolean);
+          if (parts.length >= 2) {
+            return `${parts[0]}/${parts[1]}`;
+          }
+        }
+      } catch (e) {}
+      
+      const fallbackParts = clean.replace('https://', '').split('/').filter(Boolean);
+      if (fallbackParts.length >= 2) {
+        const ghIndex = fallbackParts.findIndex(p => p.includes('github.com'));
+        if (ghIndex !== -1 && fallbackParts.length > ghIndex + 2) {
+          return `${fallbackParts[ghIndex+1]}/${fallbackParts[ghIndex+2]}`;
+        }
+        return `${fallbackParts[fallbackParts.length - 2]}/${fallbackParts[fallbackParts.length - 1]}`;
+      }
+      return input.trim();
+    }
+
     async function triggerAnalysis() {
-      const gitId = document.getElementById('form-git-id').value.trim();
+      const rawGitId = document.getElementById('form-git-id').value.trim();
+      const gitId = extractRepoSlug(rawGitId);
       const liveUrl = document.getElementById('form-live-url').value.trim();
       const overrideTitle = document.getElementById('override-title').value.trim();
       const overrideDesc = document.getElementById('override-desc').value.trim();
