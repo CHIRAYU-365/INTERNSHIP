@@ -1,55 +1,63 @@
-# Internship Project Portfolio
+# 🌌 CyberFolio // Internship Project Hub v2.0
 
-A sleek, modern, and responsive web application designed to showcase internship projects. Built with a premium Web3-inspired aesthetic, this app allows you to dynamically add, view, and remove projects with full file-system persistence.
+A premium, state-of-the-art Web3 portfolio dashboard designed to showcase internship projects. Features custom mouse-interactive neon orbs, automated Github repository analytics, custom language-to-badge mapping, and dynamic MongoDB database synchronization.
 
-## 🚀 Features
+---
 
-- **Responsive Grid Layout:** Automatically adapts from single-column mobile views to a beautifully structured 4-column desktop grid.
-- **Glassmorphism Design:** Features a premium UI with glass cards, animated orbs, gradient floating buttons, and dynamic grid backgrounds.
-- **Node.js Backend Persistence:** Connects to a lightweight Express.js server that physically writes your data to `projects.json`, ensuring no progress is ever lost on refresh.
-- **Dynamic Technology Badges:** Search through a massive database of 800+ programming languages, frameworks, and blockchains. Badges auto-generate with official brand colors and vector icons (using Devicon & FontAwesome).
-- **GitHub Integration:** Automatically fetches repository names and descriptions when you provide a GitHub ID.
-- **Delete Mode:** Seamless UI toggle to permanently remove projects from the grid and the underlying JSON file.
+## ✨ Features
 
-## 🛠️ Technology Stack
+- **Next-Gen Web3 Aesthetics:** Built on a sleek `slate-950` layout, animated cyber grid lines, moving gradient glowing orbs, and glassmorphic cards with micro-animations.
+- **Dynamic Portfolio Metrics:** Auto-calculated system statistics displaying the total project counts.
+- **Auto GitHub Analysis:** Simply input a GitHub Repository Path. The app queries the GitHub API to extract project details and auto-analyzes the language structure using the GitHub Languages API.
+- **Smart Tech Badge Mapping:** Integrates with an 800+ technology database to auto-map repository metrics to branded color pills with custom icons (Devicon & FontAwesome).
+- **Secure Modifying Commands:** Portfolio updates (creation/deletion) require signature credentials verification using master passkey authentication (`ankyl`).
+- **One-Click Delete Mode:** Easily toggle Delete Mode in the navbar to permanently remove records from the cloud database.
+- **Serverless Production Optimization:** Configured with robust MongoDB pooling mechanisms to prevent timeout or socket disconnect errors under Vercel Serverless runtimes.
 
-- **Frontend:** HTML5, Vanilla JavaScript, CSS3 (Tailwind CSS, custom animations)
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend:** HTML5, Tailwind CSS (3.4), Custom keyframe animations, Lucide Icons
 - **Backend:** Node.js, Express.js
-- **Data Storage:** Local JSON File (`projects.json`)
-- **Icons:** Lucide Icons, Devicon, FontAwesome
+- **Database:** MongoDB (via Mongoose)
+- **Deployment:** Vercel (using serverless configurations in `vercel.json`)
 
-## ⚙️ Installation & Setup
+---
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/CHIRAYU-365/INTERNSHIP.git
-   cd INTERNSHIP/internship
-   ```
+## ⚙️ Installation & Launch
 
-2. **Install Backend Dependencies:**
-   Ensure you have [Node.js](https://nodejs.org/) installed, then run:
-   ```bash
-   npm install
-   ```
-   *(This installs `express` and `cors` as defined in `package.json`)*
+### 1. Clone the project
+```bash
+git clone https://github.com/CHIRAYU-365/INTERNSHIP.git
+cd INTERNSHIP/INTERNSHIP
+```
 
-3. **Start the Server:**
-   ```bash
-   npm start
-   ```
+### 2. Install dependencies
+```bash
+npm install
+```
 
-4. **Open the App:**
-   Open your browser and navigate to:
-   ```
-   http://localhost:3000
-   ```
+### 3. Add MongoDB Connection Credentials
+Create a `.env` file in the root directory (or use the provided template) and add your MongoDB connection string:
+```env
+MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/cyberfolio?retryWrites=true&w=majority
+```
+*(Make sure to allow access from anywhere `0.0.0.0/0` in MongoDB Atlas Network Access so Vercel can connect)*
 
-## 🎮 Usage Guide
+### 4. Boot up local environment
+```bash
+npm start
+```
+Go to `http://localhost:3000` to interact with your dashboard!
 
-- **Adding a Project:** Click the global floating **`+`** button at the bottom of the screen. Enter the master password (`ankyl`), provide a GitHub repo or manual details, select your tech stack, and save!
-- **Removing a Project:** Click the **`-`** button to enter *Delete Mode*. The project cards will shake to indicate they are editable. Click the trash icon on any project to permanently delete it.
-- **Technologies:** You can select from over 800 technologies. The app will automatically render their precise logo and brand color at the bottom of the card.
+---
 
-## 📝 License
+## 🎯 Production Deploy (Vercel)
 
-This project is open-source and available for educational and portfolio purposes.
+1. Connect your repository to Vercel.
+2. In the Vercel dashboard, go to your project **Settings -> Environment Variables**.
+3. Add a new key-value pair:
+   - **Key:** `MONGODB_URI`
+   - **Value:** `<your-mongodb-atlas-connection-string>`
+4. Deploy. The backend server and frontend will map automatically via `vercel.json`!

@@ -6,99 +6,97 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
-
-// Robust Serverless Database Connection
-let cached = global.mongoose;
-if (!cached) {
-    cached = global.mongoose = { conn: null, promise: null };
+let cachedConnection = global.mongoose;
+if (!cachedConnection) {
+    cachedConnection = global.mongoose = { conn: null, promise: null };
 }
 
-async function connectDB() {
-    if (cached.conn) return cached.conn;
+async function connectToDatabase() {
+    if (cachedConnection.conn) return cachedConnection.conn;
     if (!MONGODB_URI) {
-        console.warn('WARNING: MONGODB_URI is not set.');
-        throw new Error('MONGODB_URI is not set');
+        console.error('CRITICAL: MONGODB_URI environment variable is missing.');
+        throw new Error('Database connection string is missing.');
     }
-    if (!cached.promise) {
-        cached.promise = mongoose.connect(MONGODB_URI, {
+    if (!cachedConnection.promise) {
+        cachedConnection.promise = mongoose.connect(MONGODB_URI, {
             bufferCommands: false,
-        }).then((mongoose) => {
-            console.log('Successfully connected to MongoDB.');
-            return mongoose;
+        }).then((mongooseInstance) => {
+            console.log('Database connection initialized successfully.');
+            return mongooseInstance;
         });
     }
-    cached.conn = await cached.promise;
-    return cached.conn;
+    cachedConnection.conn = await cachedConnection.promise;
+    return cachedConnection.conn;
 }
 
-// Define the Project Schema
 const projectSchema = new mongoose.Schema({
     name: { type: String, required: true, unique: true },
     gitId: { type: String, default: null },
-    description: { type: String },
+    description: { type: String, default: 'No description provided.' },
     techs: { type: [String], default: [] },
     liveUrl: { type: String, default: null }
-});
+}, { timestamps: true });
 
 const Project = mongoose.models.Project || mongoose.model('Project', projectSchema);
 
-// Read all projects
 app.get('/api/projects', async (req, res) => {
     try {
-        await connectDB();
-        const projects = await Project.find({});
-        res.json(projects);
+        await connectToDatabase();
+        const projects = await Project.find({}).sort({ createdAt: -1 });
+        res.status(200).json(projects);
     } catch (err) {
-        console.error('Fetch Error:', err);
-        res.status(500).json({ error: 'Failed to fetch projects from database' });
+        console.error('GET projects failed:', err);
+        res.status(500).json({ error: 'Failed to fetch projects from the database.' });
     }
 });
 
-// Add a project
 app.post('/api/projects', async (req, res) => {
     try {
-        await connectDB();
-        const newProjectData = req.body;
+        await connectToDatabase();
+        const projectData = req.body;
         
-        // Upsert to avoid duplicates
-        const savedProject = await Project.findOneAndUpdate(
-            { name: newProjectData.name },
-            newProjectData,
+        if (!projectData.name) {
+            return res.status(400).json({ error: 'Project name is required.' });
+        }
+
+        const project = await Project.findOneAndUpdate(
+            { name: projectData.name },
+            projectData,
             { new: true, upsert: true, setDefaultsOnInsert: true }
         );
 
-        res.json({ success: true, project: savedProject });
+        res.status(201).json({ success: true, project });
     } catch (err) {
-        console.error('Save Error:', err);
-        res.status(500).json({ error: 'Failed to save project' });
+        console.error('POST project failed:', err);
+        res.status(500).json({ error: 'Failed to save the project.' });
     }
 });
 
-// Remove a project
 app.delete('/api/projects/:name', async (req, res) => {
     try {
-        await connectDB();
+        await connectToDatabase();
         const projectName = req.params.name;
-        const result = await Project.findOneAndDelete({ name: projectName });
         
-        if (!result) {
-             return res.status(404).json({ error: 'Project not found' });
+        const deletedProject = await Project.findOneAndDelete({ name: projectName });
+        if (!deletedProject) {
+            return res.status(404).json({ error: 'Project not found.' });
         }
-        res.json({ success: true });
+
+        res.status(200).json({ success: true, message: 'Project deleted permanently.' });
     } catch (err) {
-        console.error('Delete Error:', err);
-        res.status(500).json({ error: 'Failed to delete project' });
+        console.error('DELETE project failed:', err);
+        res.status(500).json({ error: 'Failed to delete the project.' });
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is running at http://localhost:${PORT}`);
+    console.log(`Server launched successfully at http://localhost:${PORT}`);
 });
 
 module.exports = app;
